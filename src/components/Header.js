@@ -3,8 +3,20 @@ import { Avatar, Button, Stack } from "@mui/material";
 import Box from "@mui/material/Box";
 import React from "react";
 import "./Header.css";
+import { useHistory} from "react-router-dom";
 
 const Header = ({ children, hasHiddenAuthButtons }) => {
+  const history=useHistory();
+
+  const logout=()=>{
+    localStorage.removeItem("username");
+    localStorage.removeItem("token");
+    localStorage.removeItem("balance");
+    history.push("/", { from: "Header" });
+    window.location.reload();
+  }
+
+  if(hasHiddenAuthButtons){
     return (
       <Box className="header">
         <Box className="header-title">
@@ -14,11 +26,44 @@ const Header = ({ children, hasHiddenAuthButtons }) => {
           className="explore-button"
           startIcon={<ArrowBackIcon />}
           variant="text"
-        >
-          Back to explore
-        </Button>
+          onClick={() => history.push("/", { from: "Header" })}
+        >Back to explore
+         </Button>
       </Box>
     );
+
+  }
+
+  return (
+    <Box className="header">
+      <Box className="header-title">
+          <img src="logo_light.svg" alt="QKart-icon"></img> 
+      </Box>
+      <Stack direction="row" spacing={1}>
+        {localStorage.getItem("username")?
+        (<><Avatar src="avatar.png" alt={localStorage.getItem("username")} />
+        <p className="username-text">{localStorage.getItem("username")}</p>
+        <Button variant="contained" onClick={logout}>Logout</Button>
+        </>):
+      (<>
+        
+        <Button
+        type="primary"
+        onClick={() => history.push("/login", { from: "Header" })}
+      >Login
+       </Button>
+       <Button
+        variant="contained"
+        onClick={() => history.push("/register", { from: "Header" })}
+      >Register
+       </Button> </>)
+          }
+       </Stack>
+    </Box>
+  );
+
+
+
 };
 
 export default Header;
