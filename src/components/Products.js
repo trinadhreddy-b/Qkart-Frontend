@@ -154,6 +154,121 @@ const Products = () => {
     setDebounceTimeout(timeout);
 
   };
+
+  /**
+   * Perform the API call to fetch the user's cart and return the response
+   *
+   * @param {string} token - Authentication token returned on login
+   *
+   * @returns { Array.<{ productId: string, qty: number }> | null }
+   *    The response JSON object
+   *
+   * Example for successful response from backend:
+   * HTTP 200
+   * [
+   *      {
+   *          "productId": "KCRwjF7lN97HnEaY",
+   *          "qty": 3
+   *      },
+   *      {
+   *          "productId": "BW0jAAeDJmlZCF8i",
+   *          "qty": 1
+   *      }
+   * ]
+   *
+   * Example for failed response from backend:
+   * HTTP 401
+   * {
+   *      "success": false,
+   *      "message": "Protected route, Oauth2 Bearer token not found"
+   * }
+   */
+
+   const fetchCart = async (token) => {
+    if (!token) return;
+
+    const url = `${config["endpoint"]}/cart`;
+
+    try {
+      // TODO: CRIO_TASK_MODULE_CART - Pass Bearer token inside "Authorization" header to get data from "GET /cart" API and return the response data
+      const res = await axios.get(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.status === 200) {
+        return res.data;
+      }
+    } catch (e) {
+      if (e.response && e.response.status === 400) {
+        enqueueSnackbar(e.response.data.message, { variant: "error" });
+      } else {
+        enqueueSnackbar(
+          "Could not fetch cart details. Check that the backend is running, reachable and returns valid JSON.",
+          {
+            variant: "error",
+          }
+        );
+      }
+      return null;
+    }
+  };
+
+  // TODO: CRIO_TASK_MODULE_CART - Return if a product already exists in the cart
+  /**
+   * Return if a product already is present in the cart
+   *
+   * @param { Array.<{ productId: String, quantity: Number }> } items
+   *    Array of objects with productId and quantity of products in cart
+   * @param { String } productId
+   *    Id of a product to be checked
+   *
+   * @returns { Boolean }
+   *    Whether a product of given "productId" exists in the "items" array
+   *
+   */
+  const isItemInCart = (items, productId) => {
+    return items.find((itemId) => itemId["productId"] === productId);
+  };
+
+  /**
+   * Perform the API call to add or update items in the user's cart and update local cart data to display the latest cart
+   *
+   * @param {string} token
+   *    Authentication token returned on login
+   * @param { Array.<{ productId: String, quantity: Number }> } items
+   *    Array of objects with productId and quantity of products in cart
+   * @param { Array.<Product> } products
+   *    Array of objects with complete data on all available products
+   * @param {string} productId
+   *    ID of the product that is to be added or updated in cart
+   * @param {number} qty
+   *    How many of the product should be in the cart
+   * @param {boolean} options
+   *    If this function was triggered from the product card's "Add to Cart" button
+   *
+   * Example for successful response from backend:
+   * HTTP 200 - Updated list of cart items
+   * [
+   *      {
+   *          "productId": "KCRwjF7lN97HnEaY",
+   *          "qty": 3
+   *      },
+   *      {
+   *          "productId": "BW0jAAeDJmlZCF8i",
+   *          "qty": 1
+   *      }
+   * ]
+   *
+   * Example for failed response from backend:
+   * HTTP 404 - On invalid productId
+   * {
+   *      "success": false,
+   *      "message": "Product doesn't exist"
+   * }
+   */
+
   const addToCart = async (
     token,
     items,
@@ -167,13 +282,13 @@ const Products = () => {
       return;
     }
 
-    // if (options.preventDuplicate && isItemInCart(items, productId)) {
-    //   enqueueSnackbar(
-    //     "Item already in cart. Use the cart sidebar to update qunatity or remove item.",
-    //     { variant: "warning" }
-    //   );
-    //   return;
-    // }
+    if (options.preventDuplicate && isItemInCart(items, productId)) {
+      enqueueSnackbar(
+        "Item already in cart. Use the cart sidebar to update qunatity or remove item.",
+        { variant: "warning" }
+      );
+      return;
+    }
 
     try {
       const res = await axios.post(
@@ -219,102 +334,128 @@ const Products = () => {
 
 
 
-  return (
-    <div>
-      <Header>
-        {/* TODO: CRIO_TASK_MODULE_PRODUCTS - Display search bar in the header for Products page */}
+    return (
+      <div>
+        <Header children>
+          {/* TODO: CRIO_TASK_MODULE_PRODUCTS - Display search bar in the header for Products page */}
+  
+          <TextField
+            className="search-desktop"
+            size="small"
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <Search color="primary" />
+                </InputAdornment>
+              ),
+            }}
+            placeholder="Search for items/categories"
+            name="search"
+            onChange={(e) => debounceSearch(e, debounceTimeout)}
+          />
+        </Header>
+  
         <TextField
-        className="search-desktop search"
-        size="small"
-        
-        InputProps={{
-          endAdornment: (
-            <InputAdornment position="end">
-              <Search color="primary" />
-            </InputAdornment>
-          ),
-        }}
-        placeholder="Search for items/categories"
-        name="search"
-        onChange={(e) => debounceSearch(e, debounceTimeout)}
-      />
-      </Header>
+          className="search-mobile"
+          size="small"
+          fullWidth
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <Search color="primary" />
+              </InputAdornment>
+            ),
+          }}
+          placeholder="Search for items/categories"
+          name="search"
+          onChange={(e) => debounceSearch(e, debounceTimeout)}
+        />
+  
+        <Grid container>
+          <Grid
+            item
+            xs={12}
+            md={token === null ? 12 : 9}
+            className="product-grid"
+            bgcolor="white"
+          >
+            <Box className="hero">
+              <p className="hero-heading">
+                India’s <span className="hero-highlight">FASTEST DELIVERY</span>{" "}
+                to your door step
+              </p>
+            </Box>
+  
+            {isLoading && (
+              <div className="loading">
+                <CircularProgress />
+                <strong>Loading Products...</strong>
+              </div>
+            )}
+  
+            {productNotFound && (
+              <div className="loading">
+                <SentimentDissatisfied />
+                <strong>No products found</strong>
+              </div>
+            )}
+  
+            {!isLoading && !productNotFound && (
+              <Grid container spacing={2} sx={{ p: 2 }}>
+                {filterProduct.map((product) => {
+                  return (
+                    <Grid item xs={12} sm={6} md={3} key={product._id}>
+                      <ProductCard
+                        product={product}
+                        handleAddToCart={async () => {
+                          await addToCart(
+                            token,
+                            item,
+                            productData,
+                            product._id,
+                            1,
+                            { preventDuplicate: true }
+                          );
+                        }}
+                      />
+                    </Grid>
+                  );
+                })}
+              </Grid>
+            )}
+          </Grid>
+  
+          {
+            // using ternary to render Cart section when user login
+            token === null ? null : (
+              <Grid item xs={12} md={3}>
+                <Cart
+                  hasCheckedoutButton
+                  products={productData}
+                  items={item}
+                  handleQuantity={(token, items, products, productId, qty) =>
+                    addToCart(token, items, products, productId, qty)
+                  }
+                />
+              </Grid>
+            )
+          }
+        </Grid>
+  
+        <Footer />
+      </div>
+    );
+  };
+  
+  export default Products;
 
-      {/* Search view for mobiles */}
-      <TextField
-        className="search-mobile"
-        size="small"
-        fullWidth
-        InputProps={{
-          endAdornment: (
-            <InputAdornment position="end">
-              <Search color="primary" />
-            </InputAdornment>
-          ),
-        }}
-        placeholder="Search for items/categories"
-        name="search"
-        onChange={(e) => debounceSearch(e, debounceTimeout)}
-      />
-       <Grid container>
-         <Grid item xs={12}
-          md={token === null ? 12 : 9} className="product-grid">
-           <Box className="hero">
-             <p className="hero-heading">
-               India’s <span className="hero-highlight">FASTEST DELIVERY</span>{" "}
-               to your door step
-             </p>
-           </Box>
-         </Grid>
-         <Grid container spacing={2}>
-         {isLoading && (
-            <div className="loading">
-              <CircularProgress />
-              <strong>Loading Products...</strong>
-            </div>
-          )}
-          {productNotFound && (
-            <div className="loading">
-              <SentimentDissatisfied />
-              <strong>No products found</strong>
-            </div>
-          )}
 
-          {!isLoading && !productNotFound &&
-            filterProduct.map((product)=>{ return (
-          <Grid item xs={12} sm={6} md={3} key={product._id}>
-         <ProductCard product={product} handleAddToCart={async () => {
-                        await addToCart(
-                          token,
-                          item,
-                          productData,
-                          product._id,
-                          1,
-                          { preventDuplicate: true }
-                        );
-                      }} />
-         </Grid>);})
-         }
-         </Grid>
-         {
-          // using ternary to render Cart section when user login
-          token === null ? null : (
-            <Grid item xs={12} md={3}>
-              <Cart
-                hasCheckedoutButton
-                products={productData}
-                items={item}
-                handleQuantity={(token, items, products, productId, qty) =>
-                  addToCart(token, items, products, productId, qty)
-                }
-              />
-            </Grid>
-          )
-        }
-       </Grid>
-      <Footer />
-    </div>
-  );
-};
 
-export default Products;
+
+
+
+
+
+
+
+  
