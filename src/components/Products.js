@@ -14,6 +14,7 @@ import Footer from "./Footer";
 import Header from "./Header";
 import "./Products.css";
 import ProductCard from "./ProductCard";
+import Cart, { generateCartItemsFrom } from "./Cart"
 
 // Definition of Data Structures used
 /**
@@ -39,6 +40,9 @@ const Products = () => {
     const [productNotFound, setProductNotFound] = useState(false);
     const [debounceTimeout, setDebounceTimeout] = useState(0);
 
+    const [item, setItem] = useState([]);
+
+    const token = localStorage.getItem("token");
   // TODO: CRIO_TASK_MODULE_PRODUCTS - Fetch products data and store it
   /**
    * Make API call to get the products list and store it to display the products
@@ -150,13 +154,66 @@ const Products = () => {
     setDebounceTimeout(timeout);
 
   };
+  const addToCart = async (
+    token,
+    items,
+    products,
+    productId,
+    qty,
+    options = { preventDuplicate: false }
+  ) => {
+    if (!token) {
+      enqueueSnackbar("Login to add item to the cart", { variant: "warning" });
+      return;
+    }
+
+    // if (options.preventDuplicate && isItemInCart(items, productId)) {
+    //   enqueueSnackbar(
+    //     "Item already in cart. Use the cart sidebar to update qunatity or remove item.",
+    //     { variant: "warning" }
+    //   );
+    //   return;
+    // }
+
+    try {
+      const res = await axios.post(
+        `${config["endpoint"]}/cart`,
+        { productId, qty },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      let updateData = generateCartItemsFrom(res.data, products);
+      setItem(updateData);
+    } catch (error) {
+      if (error.response) {
+        enqueueSnackbar(error.data.message, { variant: "error" });
+      } else {
+        enqueueSnackbar(
+          "Could not fetch products. Check that the backend is running, reachable and returns valid JSON.",
+          { variant: "error" }
+        );
+      }
+    }
+  };
 
 
    
 
   useEffect(()=>{
+    const datafetching = async () => {
+      const productdata = await performAPICall();
+      if (token) {
+        const fetchcart = await fetchCart(token);
+        const cartData = generateCartItemsFrom(fetchcart, productdata);
+        setItem(cartData);
+      }
+    };
 
-      performAPICall();
+    datafetching();
+      
 
     },[]);
 
@@ -200,7 +257,8 @@ const Products = () => {
         onChange={(e) => debounceSearch(e, debounceTimeout)}
       />
        <Grid container>
-         <Grid item className="product-grid">
+         <Grid item xs={12}
+          md={token === null ? 12 : 9} className="product-grid">
            <Box className="hero">
              <p className="hero-heading">
                India’s <span className="hero-highlight">FASTEST DELIVERY</span>{" "}
@@ -225,10 +283,34 @@ const Products = () => {
           {!isLoading && !productNotFound &&
             filterProduct.map((product)=>{ return (
           <Grid item xs={12} sm={6} md={3} key={product._id}>
-         <ProductCard product={product} handleAddToCart={()=>{}} />
+         <ProductCard product={product} handleAddToCart={async () => {
+                        await addToCart(
+                          token,
+                          item,
+                          productData,
+                          product._id,
+                          1,
+                          { preventDuplicate: true }
+                        );
+                      }} />
          </Grid>);})
          }
          </Grid>
+         {
+          // using ternary to render Cart section when user login
+          token === null ? null : (
+            <Grid item xs={12} md={3}>
+              <Cart
+                hasCheckedoutButton
+                products={productData}
+                items={item}
+                handleQuantity={(token, items, products, productId, qty) =>
+                  addToCart(token, items, products, productId, qty)
+                }
+              />
+            </Grid>
+          )
+        }
        </Grid>
       <Footer />
     </div>

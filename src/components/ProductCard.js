@@ -30,7 +30,8 @@ const ProductCard = ({ product, handleAddToCart }) => {
           <Rating name="read-only" value={product.rating} readOnly />
         </CardContent> 
       <CardActions>
-        <Button startIcon={<AddShoppingCartOutlined />} variant="contained" fullWidth>
+        <Button startIcon={<AddShoppingCartOutlined />} variant="contained" fullWidth
+        onClick={handleAddToCart}>
           ADD TO CART
         </Button>
       </CardActions>
